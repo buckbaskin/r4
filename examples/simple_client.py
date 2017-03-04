@@ -1,3 +1,9 @@
+import r4
+print(dir(r4))
+
+import sys
+sys.exit(1)
+
 from r4.client import R4
 
 bucket = R4(username='buck', secret='oldman', bucket_name='bucket')
