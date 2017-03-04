@@ -26,5 +26,5 @@ install:
   - pip install -r requirements/userserver/requirements.txt
   - pip install -r requirements/backend/requirements.txt
 script:
-  - pytest tests/
+  - py.test tests/
 
