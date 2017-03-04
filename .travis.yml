@@ -1,0 +1,32 @@
+language: python
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "nightly"
+
+# save pip installs between runs
+cache: "pip"
+
+# services
+services:
+  - memcached
+  - redis-server
+# command to install dependencies
+install: 
+  - pip install --upgrade pip setuptools
+  - pip install -r requirements/test.txt
+  - pip install -r requirements/dev.txt
+  - pip install -r requirements/client/requirements.txt
+  - pip install -r requirements/fileserver/requirements.txt
+  - pip install -r requirements/userserver/requirements.txt
+  - pip install -r requirements/backend/requirements.txt
+script:
+  - pytest
+
+after-success:
+  - echo after-success running
+  - pylint flaskserver
+  - pylint service1
+  - codecov
