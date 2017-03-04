@@ -1,2 +1,4 @@
 *.pyc
+.cache/
 venv/
+venv34/
