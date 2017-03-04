@@ -9,15 +9,12 @@ python:
 # save pip installs between runs
 cache: "pip"
 
-# services
-services:
-  - memcached
-  - redis-server
 # command to install dependencies
 install: 
   - pip install --upgrade pip setuptools
   - pip install -r requirements/test.txt
   - pip install -r requirements/dev.txt
+  - pip install -r requirements/common.txt
   - pip install -r requirements/client/requirements.txt
   - pip install -r requirements/fileserver/requirements.txt
   - pip install -r requirements/userserver/requirements.txt
@@ -25,8 +22,3 @@ install:
 script:
   - pytest
 
-after-success:
-  - echo after-success running
-  - pylint flaskserver
-  - pylint service1
-  - codecov
