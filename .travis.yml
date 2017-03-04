@@ -14,6 +14,7 @@ matrix:
   fast_finish: true
   allowed_failures:
     - python: "2.7"
+    - python: "nightly"
 
 # command to install dependencies
 install: 
