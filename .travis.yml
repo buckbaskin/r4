@@ -1,4 +1,5 @@
 language: python
+sudo: false
 python:
   - "2.7"
   - "3.3"
@@ -8,6 +9,11 @@ python:
 
 # save pip installs between runs
 cache: "pip"
+
+matrix:
+  fast_finish: true
+  allowed_failures:
+    - python: "2.7"
 
 # command to install dependencies
 install: 
