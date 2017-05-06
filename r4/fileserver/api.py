@@ -2,11 +2,10 @@ from r4.fileserver import server as router
 from flask import render_template, request, redirect, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 import os
-@router.route('/' methods = ['GET','POST'])
+@router.route('/', methods = ['GET','POST'])
 def testing_upload():
-    if request.method = 'POST':
-        return redirect(url_for('uploaded_file',username = 'username', bucket = 'bucket'
-                                r4id=request.form['r4id']))
+    if request.method == 'POST':
+        return redirect(url_for(username = 'username', bucket = 'bucket', r4id=request.form['r4id']))#'uploaded_file',username = 'username', bucket = 'bucket', r4id=request.form['r4id']))
     return '''
      <!doctype html>
     <title>Upload new File</title>
@@ -31,7 +30,7 @@ def upload_file():
         if file:
             filename = secure_filename(request.form['r4id'])
             file.save(os.path.join(router.config['UPLOAD_FOLDER'], r4id))
-            return redirect(url_for('uploaded_file',username = request.form['username'], bucket = request.form['bucket']
+            return redirect(url_for('uploaded_file',username = request.form['username'], bucket = request.form['bucket'],
                                     r4id=request.form['r4id']))
     return '''
      <!doctype html>
