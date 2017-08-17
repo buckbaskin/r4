@@ -1,9 +1,6 @@
 language: python
 sudo: false
 python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
   - "3.5"
   - "nightly"
 
@@ -13,19 +10,12 @@ cache: "pip"
 matrix:
   fast_finish: true
   allowed_failures:
-    - python: "2.7"
     - python: "nightly"
 
 # command to install dependencies
 install: 
-  - pip install --upgrade pip setuptools
-  - pip install -r requirements/test.txt
-  - pip install -r requirements/dev.txt
-  - pip install -r requirements/common.txt
-  - pip install -r requirements/client/requirements.txt
-  - pip install -r requirements/fileserver/requirements.txt
-  - pip install -r requirements/userserver/requirements.txt
-  - pip install -r requirements/backend/requirements.txt
+  - pip install --upgrade pip
+  - pip install -r requirements/everything.txt
 script:
   - py.test tests/
 
