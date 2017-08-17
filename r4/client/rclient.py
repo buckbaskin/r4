@@ -1,7 +1,5 @@
 import boto3
-
-s3 = boto3.resource('s3')
-s3_client = boto3.client('s3')
+import botocore
 
 class FileObj(object):
     def __init__(self, data=None, id_=None):
@@ -32,58 +30,72 @@ class FileObj(object):
         print('write %s to %s' % (bytes_, self.id_,))
         self.data = bytes_
 
-def s3_bucket_list():
-    for bucket in s3_client.list_buckets()['Buckets']:
-        yield bucket
+class S3(object):
+    def __init__(self):
+        self.s3 = boto3.resource('s3')
+        self.s3_client = boto3.client('s3')
 
-def s3_bucket_create(bucket_name, region):
-    s3.Bucket(bucket_name).create(
-        CreateBucketConfiguration = {
-            'LocationConstraint': region,
-        })
+    class Region(object):
+        def __init__(self, region_id):
+            self.region_id = region_id
 
-def s3_bucket_delete(bucket_name):
-    # All objects (including all object versions and Delete Markers) in the 
-    #  bucket must be deleted before the bucket itself can be deleted.
-    print('begin delete %s' % (bucket_name,))
-    s3.Bucket(bucket_name).objects.all().delete()
-    s3.Bucket(bucket_name).delete()
-    print('end delete %s' % (bucket_name,))
+    def bucket_list(self):
+        for bucket in self.s3_client.list_buckets()['Buckets']:
+            yield bucket
 
-def s3_delete_all_buckets():
-    for bucket in s3_bucket_list():
-        s3_bucket_delete(bucket['Name'])
+    def bucket_create(self, bucket_name, region):
+        try:
+            self.s3.Bucket(bucket_name).create(
+                CreateBucketConfiguration = {
+                    'LocationConstraint': region.region_id,
+                })
+        except botocore.exceptions.ClientError:
+            return None
 
-def s3_bucket_upload(bucket_name, file_key, file_obj):
-    s3.Bucket(bucket_name).upload_fileobj(Fileobj=file_obj, Key=file_key)
 
-def s3_bucket_download(bucket_name, file_key, file_obj):
-    s3.Bucket(bucket_name).download_fileobj(Key=file_key, Fileobj=file_obj)
+    def bucket_delete(self, bucket_name):
+        # All objects (including all object versions and Delete Markers) in the 
+        #  bucket must be deleted before the bucket itself can be deleted.
+        print('begin delete %s' % (bucket_name,))
+        self.s3.Bucket(bucket_name).objects.all().delete()
+        self.s3.Bucket(bucket_name).delete()
+        print('end delete %s' % (bucket_name,))
 
-bucket_found = False
-for bucket in s3_bucket_list():
-    print('Bucket %s' % bucket['Name'])
-    bucket_found = True
+    def delete_all_buckets(self, ):
+        for bucket in self.bucket_list():
+            self.bucket_delete(bucket['Name'])
 
-if not bucket_found:
-    print('No buckets found')
+    def bucket_upload(self, bucket_name, file_key, file_obj):
+        self.s3.Bucket(bucket_name).upload_fileobj(Fileobj=file_obj, Key=file_key)
 
-upload_this = FileObj('Hello AWS World'.encode('utf-8'), 'upload_this')
-key = 'test_file'
-bucket_name = 'io.r4.username02'
+    def bucket_download(self, bucket_name, file_key, file_obj):
+        self.s3.Bucket(bucket_name).download_fileobj(Key=file_key, Fileobj=file_obj)
 
-s3_bucket_create(bucket_name, 'us-east-2')
 
-s3_bucket_upload(bucket_name, key, upload_this)
+if __name__ == '__main__':
+    s3 = S3()
+    bucket_found = False
+    for bucket in s3.bucket_list():
+        print('Bucket %s' % bucket['Name'])
+        bucket_found = True
 
-print('uploaded file %s to bucket %s' % (key, bucket_name))
+    if not bucket_found:
+        print('No buckets found')
 
-download_here = FileObj(None, 'download_here')
+    upload_this = FileObj('Hello AWS World again'.encode('utf-8'), 'upload_this')
+    key = 'test_file'
+    bucket_name = 'io.r4.username03'
 
-s3_bucket_download(bucket_name, key, download_here)
+    s3.bucket_create(bucket_name, S3.Region('us-east-2'))
 
-print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, download_here.data))
+    s3.bucket_upload(bucket_name, key, upload_this)
 
-s3_delete_all_buckets()
+    print('uploaded file %s to bucket %s' % (key, bucket_name))
 
-print('finished deleting buckets')
+    download_here = FileObj(None, 'download_here')
+
+    s3.bucket_download(bucket_name, key, download_here)
+
+    print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, download_here.data))
+
+    # s3.delete_all_buckets()
