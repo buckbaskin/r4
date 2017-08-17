@@ -43,10 +43,12 @@ def s3_bucket_create(bucket_name, region):
         })
 
 def s3_bucket_delete(bucket_name):
-    # TODO delete everything in the bucket first:
     # All objects (including all object versions and Delete Markers) in the 
     #  bucket must be deleted before the bucket itself can be deleted.
+    print('begin delete %s' % (bucket_name,))
+    s3.Bucket(bucket_name).objects.all().delete()
     s3.Bucket(bucket_name).delete()
+    print('end delete %s' % (bucket_name,))
 
 def s3_delete_all_buckets():
     for bucket in s3_bucket_list():
@@ -58,6 +60,7 @@ def s3_bucket_upload(bucket_name, file_key, file_obj):
 def s3_bucket_download(bucket_name, file_key, file_obj):
     s3.Bucket(bucket_name).download_fileobj(Key=file_key, Fileobj=file_obj)
 
+bucket_found = False
 for bucket in s3_bucket_list():
     print('Bucket %s' % bucket['Name'])
     bucket_found = True
@@ -67,7 +70,9 @@ if not bucket_found:
 
 upload_this = FileObj('Hello AWS World'.encode('utf-8'), 'upload_this')
 key = 'test_file'
-bucket_name = 'io.r4.username'
+bucket_name = 'io.r4.username02'
+
+s3_bucket_create(bucket_name, 'us-east-2')
 
 s3_bucket_upload(bucket_name, key, upload_this)
 
@@ -79,4 +84,6 @@ s3_bucket_download(bucket_name, key, download_here)
 
 print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, download_here.data))
 
-# s3_delete_all_buckets()
+s3_delete_all_buckets()
+
+print('finished deleting buckets')
