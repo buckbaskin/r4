@@ -1,5 +1,9 @@
 import boto3
 import botocore
+import copy
+import threading
+
+from collections import deque
 
 class FileObj(object):
     def __init__(self, data=None, id_=None):
@@ -15,20 +19,35 @@ class FileObj(object):
         if size is None:
             size = len(self.data)
         size = int(size)
-        print('read %s from %s' % (self.data, self.id_,))
-        print('with size %d and args %s and kwargs %s' % (size, args, kwargs,))
+        # print('read %s from %s' % (self.data, self.id_,))
         if self.index + size >= len(self.data):
             old_index = self.index + 0
             self.index = len(self.data)
+            print('read %s from %s' % (self.data[old_index:], self.id_,))
             return self.data[old_index:]
         else:
             old_index = self.index + 0
             self.index += size
+            print('read %s from %s' % (self.data[old_index:self.index], self.id_,))
             return self.data[old_index:self.index]
 
     def write(self, bytes_, *args, **kwargs):
-        print('write %s to %s' % (bytes_, self.id_,))
+        # print('write %s to %s' % (bytes_, self.id_,))
+        print('write %s bytes to %s' % (bytes_, self.id_,))
         self.data = bytes_
+
+class WriteOnceFileObj(FileObj):
+    def __init__(self, data, id_):
+        super(WriteOnceFileObj, self).__init__(data, id_)
+        self.written = False
+
+    def write(self, bytes_):
+        if self.written:
+            print('already wrote to this file object...')
+        else:
+            self.written = True
+            super(WriteOnceFileObj, self).write(bytes_)
+            print(self.data)
 
 class AbstractRegion(object):
     def __init__(self, region_id):
@@ -104,10 +123,10 @@ class S3(AbstractProvider):
     def delete(self, bucket_name):
         # All objects (including all object versions and Delete Markers) in the 
         #  bucket must be deleted before the bucket itself can be deleted.
-        print('begin delete %s' % (bucket_name,))
+        # print('begin delete %s' % (bucket_name,))
         self.s3.Bucket(bucket_name).objects.all().delete()
         self.s3.Bucket(bucket_name).delete()
-        print('end delete %s' % (bucket_name,))
+        # print('end delete %s' % (bucket_name,))
 
     def delete_all(self):
         for bucket in self.list():
@@ -207,7 +226,7 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threading.Thread(target=self.clients[client].create, args=(bucket_name,))
+                threads.append(threading.Thread(target=self.clients[client].create, args=(bucket_name, region,)))
 
         for t in threads:
             t.start()
@@ -226,7 +245,7 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threading.Thread(target=self.clients[client].delete, args=(bucket_name,))
+                threads.append(threading.Thread(target=self.clients[client].delete, args=(bucket_name,)))
 
         for t in threads:
             t.start()
@@ -245,7 +264,7 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threading.Thread(target=self.clients[client].delete_all)
+                threads.append(threading.Thread(target=self.clients[client].delete_all))
 
         for t in threads:
             t.start()
@@ -264,7 +283,7 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threading.Thread(target=self.clients[client].upload, args=(bucket_name, file_key, file_obj,))
+                threads.append(threading.Thread(target=self.clients[client].upload, args=(bucket_name, file_key, copy.deepcopy(file_obj),)))
 
         for t in threads:
             t.start()
@@ -283,7 +302,7 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threading.Thread(target=self.clients[client].download, args=(bucket_name, file_key, file_obj))
+                threads.append(threading.Thread(target=self.clients[client].download, args=(bucket_name, file_key, file_obj,)))
 
         for t in threads:
             t.start()
@@ -293,11 +312,12 @@ class Client(AbstractProvider):
 
 
 if __name__ == '__main__':
-    s3 = S3()
+    s3 = Client(regions=[S3.Region('us-east-2'),])
     bucket_found = False
     for bucket in s3.list():
-        print('Bucket %s' % bucket['Name'])
+        # print('Bucket %s' % bucket['Name'])
         bucket_found = True
+        break
 
     if not bucket_found:
         print('No buckets found')
@@ -306,13 +326,13 @@ if __name__ == '__main__':
     key = 'test_file'
     bucket_name = 'io.r4.username03'
 
-    s3.create(bucket_name, S3.Region('us-east-2'))
+    s3.create(bucket_name)
 
     s3.upload(bucket_name, key, upload_this)
 
     print('uploaded file %s to bucket %s' % (key, bucket_name))
 
-    download_here = FileObj(None, 'download_here')
+    download_here = WriteOnceFileObj(None, 'once download_here')
 
     s3.download(bucket_name, key, download_here)
 
