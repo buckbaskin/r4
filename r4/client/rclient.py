@@ -188,8 +188,8 @@ class Client(AbstractProvider):
     def _setup_regions(self):
         for region in self.regions:
             if isinstance(region, S3.Region):
-                if 's3' not in self.clients:
-                    self.clients['s3'] = S3()
+                if 's3.'+region.region_id not in self.clients:
+                    self.clients['s3.'+region.region_id] = S3()
             elif isinstance(region, R4.Region):
                 if 'r4' not in self.clients:
                     self.clients['r4'] = R4()
@@ -205,7 +205,7 @@ class Client(AbstractProvider):
 
         for region in self.regions:
             if isinstance(region, S3.Region):
-                client = 's3'
+                client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
             else:
@@ -220,13 +220,13 @@ class Client(AbstractProvider):
 
         for region in self.regions:
             if isinstance(region, S3.Region):
-                client = 's3'
+                client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].create, args=(bucket_name, region,)))
+                threads.append(threading.Thread(target=self.clients[client].create, args=(region.region_id + '.' + bucket_name, region,)))
 
         for t in threads:
             t.start()
@@ -239,7 +239,7 @@ class Client(AbstractProvider):
 
         for region in self.regions:
             if isinstance(region, S3.Region):
-                client = 's3'
+                client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
             else:
@@ -258,7 +258,7 @@ class Client(AbstractProvider):
 
         for region in self.regions:
             if isinstance(region, S3.Region):
-                client = 's3'
+                client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
             else:
@@ -277,7 +277,7 @@ class Client(AbstractProvider):
 
         for region in self.regions:
             if isinstance(region, S3.Region):
-                client = 's3'
+                client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
             else:
@@ -296,7 +296,7 @@ class Client(AbstractProvider):
 
         for region in self.regions:
             if isinstance(region, S3.Region):
-                client = 's3'
+                client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
             else:
@@ -312,7 +312,7 @@ class Client(AbstractProvider):
 
 
 if __name__ == '__main__':
-    s3 = Client(regions=[S3.Region('us-east-2'),])
+    s3 = Client(regions=[S3.Region('us-east-1'), S3.Region('us-east-2')])
     bucket_found = False
     for bucket in s3.list():
         # print('Bucket %s' % bucket['Name'])
