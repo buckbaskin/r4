@@ -10,14 +10,23 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 print = logger.info
 
-class FileObj(object):
-    def __init__(self, data=None, id_=None):
-        if isinstance(data, bytes):
-            self.data = data
-        else:
-            self.data = ''.encode('utf-8')
-        self.id_ = id_
+class AbstractFileManager(object):
+    def read(self, size):
+        raise NotYetImplemented()
+    def write(self):
+        raise NotYetImplemented()
+    
+class UploadManager(AbstractFileManager):
+    '''
+    Manage thread read for uploads
+    '''
+    def __init__(self, data=None):
         self.index = 0
+        self.id_ = 'Upload Manager'
+        if not isinstance(data, bytes):
+            self.data = ''.encode('utf-8')
+        else:
+            self.data = data
 
     def read(self, size=None, *args, **kwargs):
         # returns bytes, reads the data
@@ -35,24 +44,70 @@ class FileObj(object):
             self.index += size
             logger.info('read %s from %s' % (self.data[old_index:self.index], self.id_,))
             return self.data[old_index:self.index]
+ 
 
-    def write(self, bytes_, *args, **kwargs):
-        # print('write %s to %s' % (bytes_, self.id_,))
-        print('write %s bytes to %s' % (bytes_, self.id_,))
-        self.data = bytes_
+class DownloadManager(AbstractFileManager):
+    '''
+    Manage thread write for downloads
 
-class WriteOnceFileObj(FileObj):
-    def __init__(self, data, id_):
-        super(WriteOnceFileObj, self).__init__(data, id_)
-        self.written = False
+    fractional_download: select the minimum number of downloads that must
+        complete before the data is unlocked and future downloads are skipped.
+        <= 1 - accept the first download that completes and unlock data.
+            Other downloads ignored
+        > 1 - require n downloads
+    verify_download: if True, compare all downloads and ensure that the version
+        matches. Implies that all downloads must complete before the lock is
+        released
+    consensus_download: if True, compare all downloads and accept the data that
+        appears in the most downloads. Currently implies that all downloads must
+        complete before the data is unlocked. This may change if one data set
+        has shown up as a majority, then the data can be unlocked early.
+    '''
+    def __init__(self, data=None, fractional_download=0, verify_download=False, consensus_download=False):
+        if not isinstance(data, bytes):
+            self.data = ''.encode('utf-8')
+        self.data = data
+        self.read_lock = threading.Lock()
+        logger.info('acquiring lock')
+        self.read_lock.acquire()
 
-    def write(self, bytes_):
-        if self.written:
-            print('already wrote to this file object...')
+        # TODO(buckbaskin): is there a better way to write this logic?
+        if verify_download:
+            self.fractional_download = int(fractional_download)
+            self.verify_download = True
+            self.consensus_download = False
+        elif consensus_download:
+            self.fractional_download = int(fractional_download)
+            self.consensus_download = True
+            self.verify_download = False
         else:
-            self.written = True
-            super(WriteOnceFileObj, self).write(bytes_)
-            print(self.data)
+            self.fractional_download = int(fractional_download)
+            if self.fractional_download <= 1:
+                self.fractional_download = 1
+            self.consensus_download = False
+            self.verify_download = False
+
+        self.downloads_complete = 0
+
+    def write(self, bytes_): # TODO what happens if it needs to write more data?
+        if self.verify_download:
+            raise NotYetImplemented()
+        elif self.consensus_download:
+            raise NotYetImplemented()
+        else:
+            if self.read_lock.locked():
+                self.downloads_complete += 1
+                logger.info('write #%d / %d' % (self.downloads_complete, self.fractional_download,))
+                self.data = bytes_
+                if self.downloads_complete >= self.fractional_download:
+                    logger.info('releasing lock')
+                    self.read_lock.release()
+            else:
+                logger.info('write skipped by download logic')
+
+    def block_until_downloaded(self):
+        with self.read_lock:
+            logger.debug('blocked until download complete')
 
 class AbstractRegion(object):
     def __init__(self, region_id):
@@ -313,11 +368,15 @@ class Client(AbstractProvider):
         for t in threads:
             t.join()
 
-    def download(self, bucket_name, file_key, file_obj):
+    def download(self, bucket_name, file_key, fractional_download=None, verify_download=False, consensus_download=False):
         threads = []
 
+        if fractional_download is None:
+            fractional_download = len(self.regions)
+
+        d = DownloadManager(fractional_download=fractional_download)
+
         for region in self.regions:
-            print('region: %s' % (region,))
             if isinstance(region, S3.Region):
                 client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
@@ -325,13 +384,13 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].download, args=(region.region_id + '.' + bucket_name, file_key, file_obj,)))
+                threads.append(threading.Thread(target=self.clients[client].download, args=(region.region_id + '.' + bucket_name, file_key, d,)))
 
         for t in threads:
             t.start()
 
-        for t in threads:
-            t.join()
+        d.block_until_downloaded()
+        return d.data
 
 
 if __name__ == '__main__':
@@ -345,20 +404,19 @@ if __name__ == '__main__':
     
     bucket_name = 'io.r4.username03'
 
-    print('Client.create("%s")' % (bucket_name,))
-    s3.create(bucket_name)
+    # print('Client.create("%s")' % (bucket_name,))
+    # s3.create(bucket_name)
 
     # for bucket in s3.list():
     #     print('Bucket? %s' % bucket['Name'])
 
-    upload_this = FileObj('Hello AWS World. 4 Threads!'.encode('utf-8'), 'upload_this')
+    upload_this = UploadManager(data = 'Hello AWS World. 4 Threads!'.encode('utf-8'))
     key = 'test_file'
 
-    # s3.upload(bucket_name, key, upload_this)
-    # print('uploaded file %s to bucket %s' % (key, bucket_name))
+    s3.upload(bucket_name, key, upload_this)
+    print('uploaded file %s to bucket %s' % (key, bucket_name))
 
-    download_here = WriteOnceFileObj(None, 'once download_here')
-    s3.download(bucket_name, key, download_here)
-    print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, download_here.data))
+    data = s3.download(bucket_name, key, fractional_download=1)
+    print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, data))
 
     # s3.delete_all_buckets()
