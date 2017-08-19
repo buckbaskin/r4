@@ -25,7 +25,7 @@ class UploadManagerFactory(object):
             self.data = ''.encode('utf-8')
         else:
             self.data = data
-        logger.info('UMF data %s' % (self.data,))
+        logger.debug('UMF data %s' % (self.data,))
 
         self.fractional_upload = int(fractional_upload)
         if self.fractional_upload <= 1:
@@ -70,7 +70,7 @@ class UploadManager(AbstractFileManager):
 
         self.callback = callback
 
-        logger.info('UM data %s, callback %s' % (self.data, self.callback,))
+        logger.debug('UM data %s, callback %s' % (self.data, self.callback,))
 
     def read(self, size=None, *args, **kwargs):
         # returns bytes, reads the data
@@ -81,14 +81,14 @@ class UploadManager(AbstractFileManager):
         if self.index + size >= len(self.data):
             old_index = self.index + 0
             self.index = len(self.data)
-            logger.info('read %s from %s' % (self.data[old_index:], self.id_,))
+            logger.debug('read %s from %s' % (self.data[old_index:], self.id_,))
             if old_index >= len(self.data) and self.callback is not None:
                 self.callback()
             return self.data[old_index:]
         else:
             old_index = self.index + 0
             self.index += size
-            logger.info('read %s from %s' % (self.data[old_index:self.index], self.id_,))
+            logger.debug('read %s from %s' % (self.data[old_index:self.index], self.id_,))
             return self.data[old_index:self.index]
 
 class DownloadManager(AbstractFileManager):
@@ -111,7 +111,6 @@ class DownloadManager(AbstractFileManager):
     def __init__(self, fractional_download=0, verify_download=False, consensus_download=False):
         self.data = ''.encode('utf-8')
         self.read_lock = threading.Lock()
-        logger.info('acquiring lock')
         self.read_lock.acquire()
         self.process_lock = threading.Lock()
 
@@ -145,7 +144,6 @@ class DownloadManager(AbstractFileManager):
                     logger.info('write #%d / %d' % (self.downloads_complete, self.fractional_download,))
                     self.data = bytes_
                     if self.downloads_complete >= self.fractional_download:
-                        logger.info('releasing lock')
                         self.read_lock.release()
                 else:
                     logger.info('write skipped by download logic')
@@ -415,9 +413,9 @@ class Client(AbstractProvider):
         for t in threads:
             t.start()
 
-        logger.info('waiting on upload block')
+        logger.debug('waiting on upload block')
         umf.block_until_upload()
-        logger.info('completed upload block')
+        logger.debug('completed upload block')
         return umf.data
 
     def download(self, bucket_name, file_key, fractional_download=None, verify_download=False, consensus_download=False):
@@ -465,10 +463,10 @@ if __name__ == '__main__':
     upload_this = 'Hello AWS World. 4 Threads!'.encode('utf-8')
     key = 'test_file'
 
-    s3.upload(bucket_name, key, upload_this)
+    s3.upload(bucket_name, key, upload_this, fractional_upload=1)
     print('uploaded file %s to bucket %s' % (key, bucket_name))
 
-    # data = s3.download(bucket_name, key, fractional_download=1)
-    # print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, data))
+    data = s3.download(bucket_name, key, fractional_download=1)
+    print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, data))
 
     # s3.delete_all_buckets()
