@@ -338,39 +338,27 @@ if __name__ == '__main__':
 
     s3 = Client(regions=[
         S3.Region('us-east-1'),
-        # S3.Region('us-east-2'),
+        S3.Region('us-east-2'),
+        S3.Region('us-west-1'),
+        S3.Region('us-west-2'),
         ])
     
-    # print('enumerate buckets')
-
-    # bucket_found = False
-    # for bucket in s3.list():
-    #     print('Bucket %s' % bucket['Name'])
-    #     bucket_found = True
-
-    # if not bucket_found:
-    #     print('No buckets found')
-    # else:
-    #     print('Found at least one bucket')
-
-    # upload_this = FileObj('Hello AWS World again'.encode('utf-8'), 'upload_this')
-    # key = 'test_file'
     bucket_name = 'io.r4.username03'
 
     print('Client.create("%s")' % (bucket_name,))
     s3.create(bucket_name)
 
-    for bucket in s3.list():
-        print('Bucket? %s' % bucket['Name'])
+    # for bucket in s3.list():
+    #     print('Bucket? %s' % bucket['Name'])
+
+    upload_this = FileObj('Hello AWS World. 4 Threads!'.encode('utf-8'), 'upload_this')
+    key = 'test_file'
 
     # s3.upload(bucket_name, key, upload_this)
-
     # print('uploaded file %s to bucket %s' % (key, bucket_name))
 
-    # download_here = WriteOnceFileObj(None, 'once download_here')
-
-    # s3.download(bucket_name, key, download_here)
-
-    # print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, download_here.data))
+    download_here = WriteOnceFileObj(None, 'once download_here')
+    s3.download(bucket_name, key, download_here)
+    print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, download_here.data))
 
     # s3.delete_all_buckets()
