@@ -15,18 +15,62 @@ class AbstractFileManager(object):
         raise NotYetImplemented()
     def write(self):
         raise NotYetImplemented()
-    
+
+class UploadManagerFactory(object):
+    '''
+    Create a class to manage upload performance
+    '''
+    def __init__(self, data=None, fractional_upload=1):
+        if not isinstance(data, bytes):
+            self.data = ''.encode('utf-8')
+        else:
+            self.data = data
+        logger.info('UMF data %s' % (self.data,))
+
+        self.fractional_upload = int(fractional_upload)
+        if self.fractional_upload <= 1:
+            self.fractional_upload = 1
+
+        self.completed_uploads = 0
+
+        self.write_lock = threading.Lock()
+        self.write_lock.acquire()
+
+        self.process_lock = threading.Lock()
+
+    def incremement_successful(self):
+        with self.process_lock: # do this atomically
+            if self.write_lock.locked():
+                self.completed_uploads += 1
+                logger.info('upload #%d / %d' % (self.completed_uploads, self.fractional_upload,))
+                if self.completed_uploads >= self.fractional_upload:
+                    logger.info('releasing write lock')
+                    self.write_lock.release()
+            else:
+                logger.info('upload skipped by logic')
+
+    def generate_manager(self):
+        return UploadManager(data=self.data, callback=self.incremement_successful)
+
+    def block_until_upload(self):
+        with self.write_lock:
+            logger.debug('upload manager completed uploads')
+
 class UploadManager(AbstractFileManager):
     '''
     Manage thread read for uploads
     '''
-    def __init__(self, data=None):
+    def __init__(self, data=None, callback=None):
         self.index = 0
         self.id_ = 'Upload Manager'
         if not isinstance(data, bytes):
             self.data = ''.encode('utf-8')
         else:
             self.data = data
+
+        self.callback = callback
+
+        logger.info('UM data %s, callback %s' % (self.data, self.callback,))
 
     def read(self, size=None, *args, **kwargs):
         # returns bytes, reads the data
@@ -38,13 +82,14 @@ class UploadManager(AbstractFileManager):
             old_index = self.index + 0
             self.index = len(self.data)
             logger.info('read %s from %s' % (self.data[old_index:], self.id_,))
+            if old_index >= len(self.data) and self.callback is not None:
+                self.callback()
             return self.data[old_index:]
         else:
             old_index = self.index + 0
             self.index += size
             logger.info('read %s from %s' % (self.data[old_index:self.index], self.id_,))
             return self.data[old_index:self.index]
- 
 
 class DownloadManager(AbstractFileManager):
     '''
@@ -63,13 +108,12 @@ class DownloadManager(AbstractFileManager):
         complete before the data is unlocked. This may change if one data set
         has shown up as a majority, then the data can be unlocked early.
     '''
-    def __init__(self, data=None, fractional_download=0, verify_download=False, consensus_download=False):
-        if not isinstance(data, bytes):
-            self.data = ''.encode('utf-8')
-        self.data = data
+    def __init__(self, fractional_download=0, verify_download=False, consensus_download=False):
+        self.data = ''.encode('utf-8')
         self.read_lock = threading.Lock()
         logger.info('acquiring lock')
         self.read_lock.acquire()
+        self.process_lock = threading.Lock()
 
         # TODO(buckbaskin): is there a better way to write this logic?
         if verify_download:
@@ -90,20 +134,21 @@ class DownloadManager(AbstractFileManager):
         self.downloads_complete = 0
 
     def write(self, bytes_): # TODO what happens if it needs to write more data?
-        if self.verify_download:
-            raise NotYetImplemented()
-        elif self.consensus_download:
-            raise NotYetImplemented()
-        else:
-            if self.read_lock.locked():
-                self.downloads_complete += 1
-                logger.info('write #%d / %d' % (self.downloads_complete, self.fractional_download,))
-                self.data = bytes_
-                if self.downloads_complete >= self.fractional_download:
-                    logger.info('releasing lock')
-                    self.read_lock.release()
+        with self.process_lock: # enforce atomic write
+            if self.verify_download:
+                raise NotYetImplemented()
+            elif self.consensus_download:
+                raise NotYetImplemented()
             else:
-                logger.info('write skipped by download logic')
+                if self.read_lock.locked():
+                    self.downloads_complete += 1
+                    logger.info('write #%d / %d' % (self.downloads_complete, self.fractional_download,))
+                    self.data = bytes_
+                    if self.downloads_complete >= self.fractional_download:
+                        logger.info('releasing lock')
+                        self.read_lock.release()
+                else:
+                    logger.info('write skipped by download logic')
 
     def block_until_downloaded(self):
         with self.read_lock:
@@ -349,8 +394,13 @@ class Client(AbstractProvider):
         for t in threads:
             t.join()
 
-    def upload(self, bucket_name, file_key, file_obj):
+    def upload(self, bucket_name, file_key, data, fractional_upload=None):
         threads = []
+
+        if fractional_upload is None:
+            fractional_upload = len(self.regions)
+
+        umf = UploadManagerFactory(data=data, fractional_upload=int(fractional_upload))
 
         for region in self.regions:
             if isinstance(region, S3.Region):
@@ -360,13 +410,15 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].upload, args=(region.region_id + '.' + bucket_name, file_key, copy.deepcopy(file_obj),)))
+                threads.append(threading.Thread(target=self.clients[client].upload, args=(region.region_id + '.' + bucket_name, file_key, umf.generate_manager(),)))
 
         for t in threads:
             t.start()
 
-        for t in threads:
-            t.join()
+        logger.info('waiting on upload block')
+        umf.block_until_upload()
+        logger.info('completed upload block')
+        return umf.data
 
     def download(self, bucket_name, file_key, fractional_download=None, verify_download=False, consensus_download=False):
         threads = []
@@ -410,13 +462,13 @@ if __name__ == '__main__':
     # for bucket in s3.list():
     #     print('Bucket? %s' % bucket['Name'])
 
-    upload_this = UploadManager(data = 'Hello AWS World. 4 Threads!'.encode('utf-8'))
+    upload_this = 'Hello AWS World. 4 Threads!'.encode('utf-8')
     key = 'test_file'
 
     s3.upload(bucket_name, key, upload_this)
     print('uploaded file %s to bucket %s' % (key, bucket_name))
 
-    data = s3.download(bucket_name, key, fractional_download=1)
-    print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, data))
+    # data = s3.download(bucket_name, key, fractional_download=1)
+    # print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, data))
 
     # s3.delete_all_buckets()
