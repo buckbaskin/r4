@@ -1,9 +1,14 @@
 import boto3
 import botocore
 import copy
+import logging
 import threading
 
 from collections import deque
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+print = logger.info
 
 class FileObj(object):
     def __init__(self, data=None, id_=None):
@@ -19,16 +24,16 @@ class FileObj(object):
         if size is None:
             size = len(self.data)
         size = int(size)
-        # print('read %s from %s' % (self.data, self.id_,))
+        
         if self.index + size >= len(self.data):
             old_index = self.index + 0
             self.index = len(self.data)
-            print('read %s from %s' % (self.data[old_index:], self.id_,))
+            logger.info('read %s from %s' % (self.data[old_index:], self.id_,))
             return self.data[old_index:]
         else:
             old_index = self.index + 0
             self.index += size
-            print('read %s from %s' % (self.data[old_index:self.index], self.id_,))
+            logger.info('read %s from %s' % (self.data[old_index:self.index], self.id_,))
             return self.data[old_index:self.index]
 
     def write(self, bytes_, *args, **kwargs):
@@ -56,10 +61,19 @@ class AbstractRegion(object):
         else:
             self.region_id = None
 
+    def __str__(self):
+        return 'Region("%s")' % (self.region_id,)
+
+    def __repr__(self):
+        return 'Region("%s")' % (self.region_id,)
+
     def validate_region_id(self, region_id):
         return True
 
 class AbstractProvider(object):
+    def __str__(self):
+        raise NotYetImplemented()
+
     def list(self):
         raise NotYetImplemented()
 
@@ -79,9 +93,11 @@ class AbstractProvider(object):
         raise NotYetImplemented()
 
 class S3(AbstractProvider):
-    def __init__(self):
-        self.s3 = boto3.resource('s3')
-        self.s3_client = boto3.client('s3')
+    def __init__(self, region):
+        if isinstance(region, S3.Region):
+            self.region = region
+            self.s3 = boto3.resource('s3', region_name=region.region_id)
+            self.s3_client = boto3.client('s3', region_name=region.region_id)
 
     class Region(AbstractRegion):
         def validate_region_id(self, region_id):
@@ -107,16 +123,20 @@ class S3(AbstractProvider):
         for bucket in self.s3_client.list_buckets()['Buckets']:
             yield bucket
 
-    def create(self, bucket_name, region):
-        if not isinstance(region, S3.Region):
-            return False
+    def create(self, bucket_name):
         try:
-            self.s3.Bucket(bucket_name).create(
-                CreateBucketConfiguration = {
-                    'LocationConstraint': region.region_id,
-                })
+            if self.region.region_id == 'us-east-1':
+                self.s3.Bucket(bucket_name).create()
+            else:
+                self.s3.Bucket(bucket_name).create(
+                    CreateBucketConfiguration = {
+                        'LocationConstraint': self.region.region_id,
+                    })
             return True
-        except botocore.exceptions.ClientError:
+        except botocore.exceptions.ClientError as e:
+            if '%s' % (type(e),) == 'botocore.errorfactory.BucketAlreadyOwnedByYou':
+                print('bucket %s already exists' % (bucket_name,))
+            raise
             return False
 
 
@@ -189,7 +209,7 @@ class Client(AbstractProvider):
         for region in self.regions:
             if isinstance(region, S3.Region):
                 if 's3.'+region.region_id not in self.clients:
-                    self.clients['s3.'+region.region_id] = S3()
+                    self.clients['s3.'+region.region_id] = S3(region)
             elif isinstance(region, R4.Region):
                 if 'r4' not in self.clients:
                     self.clients['r4'] = R4()
@@ -226,7 +246,9 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].create, args=(region.region_id + '.' + bucket_name, region,)))
+                args = (region.region_id + '.' + bucket_name,)
+                print('create %s' % (args,))
+                threads.append(threading.Thread(target=self.clients[client].create, args=args))
 
         for t in threads:
             t.start()
@@ -245,7 +267,7 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].delete, args=(bucket_name,)))
+                threads.append(threading.Thread(target=self.clients[client].delete, args=(region.region_id + '.' + bucket_name,)))
 
         for t in threads:
             t.start()
@@ -283,7 +305,7 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].upload, args=(bucket_name, file_key, copy.deepcopy(file_obj),)))
+                threads.append(threading.Thread(target=self.clients[client].upload, args=(region.region_id + '.' + bucket_name, file_key, copy.deepcopy(file_obj),)))
 
         for t in threads:
             t.start()
@@ -295,6 +317,7 @@ class Client(AbstractProvider):
         threads = []
 
         for region in self.regions:
+            print('region: %s' % (region,))
             if isinstance(region, S3.Region):
                 client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
@@ -302,7 +325,7 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].download, args=(bucket_name, file_key, file_obj,)))
+                threads.append(threading.Thread(target=self.clients[client].download, args=(region.region_id + '.' + bucket_name, file_key, file_obj,)))
 
         for t in threads:
             t.start()
@@ -312,30 +335,42 @@ class Client(AbstractProvider):
 
 
 if __name__ == '__main__':
-    s3 = Client(regions=[S3.Region('us-east-1'), S3.Region('us-east-2')])
-    bucket_found = False
-    for bucket in s3.list():
-        # print('Bucket %s' % bucket['Name'])
-        bucket_found = True
-        break
 
-    if not bucket_found:
-        print('No buckets found')
+    s3 = Client(regions=[
+        S3.Region('us-east-1'),
+        # S3.Region('us-east-2'),
+        ])
+    
+    # print('enumerate buckets')
 
-    upload_this = FileObj('Hello AWS World again'.encode('utf-8'), 'upload_this')
-    key = 'test_file'
+    # bucket_found = False
+    # for bucket in s3.list():
+    #     print('Bucket %s' % bucket['Name'])
+    #     bucket_found = True
+
+    # if not bucket_found:
+    #     print('No buckets found')
+    # else:
+    #     print('Found at least one bucket')
+
+    # upload_this = FileObj('Hello AWS World again'.encode('utf-8'), 'upload_this')
+    # key = 'test_file'
     bucket_name = 'io.r4.username03'
 
+    print('Client.create("%s")' % (bucket_name,))
     s3.create(bucket_name)
 
-    s3.upload(bucket_name, key, upload_this)
+    for bucket in s3.list():
+        print('Bucket? %s' % bucket['Name'])
 
-    print('uploaded file %s to bucket %s' % (key, bucket_name))
+    # s3.upload(bucket_name, key, upload_this)
 
-    download_here = WriteOnceFileObj(None, 'once download_here')
+    # print('uploaded file %s to bucket %s' % (key, bucket_name))
 
-    s3.download(bucket_name, key, download_here)
+    # download_here = WriteOnceFileObj(None, 'once download_here')
 
-    print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, download_here.data))
+    # s3.download(bucket_name, key, download_here)
+
+    # print('downloaded file %s from bucket %s\n%s' % (key, bucket_name, download_here.data))
 
     # s3.delete_all_buckets()
