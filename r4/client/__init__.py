@@ -1,8 +1,8 @@
 class AbstractFileManager(object):
     def read(self, size):
-        raise NotYetImplemented()
+        raise NotImplementedError()
     def write(self):
-        raise NotYetImplemented()
+        raise NotImplementedError()
 
 class AbstractRegion(object):
     def __init__(self, region_id):
@@ -22,29 +22,29 @@ class AbstractRegion(object):
 
 class AbstractProvider(object):
     def __str__(self):
-        raise NotYetImplemented()
+        raise NotImplementedError()
 
     def list(self):
-        raise NotYetImplemented()
+        raise NotImplementedError()
 
-    def create(self, bucket_name, region):
-        raise NotYetImplemented()
+    def create(self, bucket_name):
+        raise NotImplementedError()
 
     def delete(self, bucket_name):
-        raise NotYetImplemented()
+        raise NotImplementedError()
 
     def delete_all(self):
-        raise NotYetImplemented()
+        raise NotImplementedError()
 
     def upload(self, bucket_name, file_key, file_obj):
-        raise NotYetImplemented()
+        raise NotImplementedError()
 
     def download(self, bucket_name, file_key, file_obj):
-        raise NotYetImplemented()
+        raise NotImplementedError()
 
 SUPPORTED_SERVICES = [
     'Amazon Web Services S3',
-    # 'R4 Filesystem',
+    'R4 Filesystem',
     # 'R4 Local Server',
     ]
 

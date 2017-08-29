@@ -7,7 +7,7 @@ import threading
 from collections import deque
 from r4.client import AbstractFileManager, AbstractProvider
 from r4.client.s3 import S3
-from r4.client.r4 import R4
+from r4.client.r4 import R4, FileSystem
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -132,9 +132,9 @@ class DownloadManager(AbstractFileManager):
     def write(self, bytes_): # TODO what happens if it needs to write more data?
         with self.process_lock: # enforce atomic write
             if self.verify_download:
-                raise NotYetImplemented()
+                raise NotImplementedError()
             elif self.consensus_download:
-                raise NotYetImplemented()
+                raise NotImplementedError()
             else:
                 if self.read_lock.locked():
                     self.downloads_complete += 1
@@ -172,9 +172,13 @@ class Client(AbstractProvider):
                     self.clients['s3.'+region.region_id] = S3(region)
             elif isinstance(region, R4.Region):
                 if 'r4' not in self.clients:
-                    self.clients['r4'] = R4()
+                    self.clients['r4'] = R4(region)
+            elif isinstance(region, FileSystem.Region):
+                if 'fs' not in self.clients:
+                    self.clients['fs'] = FileSystem(region)
             else:
                 print('Unsupported Region %s' % (region,))
+                raise NotImplementedError()
 
     def list(self):
         '''
@@ -188,6 +192,8 @@ class Client(AbstractProvider):
                 client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
+            elif isinstance(region, FileSystem.Region):
+                client = 'fs'
             else:
                 client = None
             if client is not None:
@@ -195,8 +201,6 @@ class Client(AbstractProvider):
                     yield bucket
 
     def create(self, bucket_name):
-        bucket_name = 'io.r4.client.%s' % (bucket_name,)
-
         threads = []
 
         for region in self.regions:
@@ -204,12 +208,13 @@ class Client(AbstractProvider):
                 client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
+            elif isinstance(region, FileSystem.Region):
+                client = 'fs'
             else:
-                client = None
-            if client is not None:
-                args = (region.region_id + '.' + bucket_name,)
-                print('create %s' % (args,))
-                threads.append(threading.Thread(target=self.clients[client].create, args=args))
+                return False
+            args = (region.region_id + '.io.r4.client.' + bucket_name,)
+            print('create %s' % (args,))
+            threads.append(threading.Thread(target=self.clients[client].create, args=args))
 
         for t in threads:
             t.start()
@@ -225,10 +230,12 @@ class Client(AbstractProvider):
                 client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
+            elif isinstance(region, FileSystem.Region):
+                client = 'fs'
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].delete, args=(region.region_id + '.' + bucket_name,)))
+                threads.append(threading.Thread(target=self.clients[client].delete, args=(region.region_id + '.io.r4.client.' + bucket_name,)))
 
         for t in threads:
             t.start()
@@ -244,6 +251,8 @@ class Client(AbstractProvider):
                 client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
+            elif isinstance(region, FileSystem.Region):
+                client = 'fs'
             else:
                 client = None
             if client is not None:
@@ -263,17 +272,23 @@ class Client(AbstractProvider):
 
         umf = UploadManagerFactory(data=data, fractional_upload=int(fractional_upload))
 
+        print('created umf')
+
         for region in self.regions:
             if isinstance(region, R4.Region):
                 client = 'r4'
             elif isinstance(region, S3.Region):
                 client = 's3.'+region.region_id
+            elif isinstance(region, FileSystem.Region):
+                client = 'fs'
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].upload, args=(region.region_id + '.' + bucket_name, file_key, umf.generate_manager(),)))
+                print('appending upload thread')
+                threads.append(threading.Thread(target=self.clients[client].upload, args=(region.region_id + '.io.r4.client.' + bucket_name, file_key, umf.generate_manager(),)))
 
         for t in threads:
+            print('starting upload thread')
             t.start()
 
         logger.debug('waiting on upload block')
@@ -294,10 +309,12 @@ class Client(AbstractProvider):
                 client = 's3.'+region.region_id
             elif isinstance(region, R4.Region):
                 client = 'r4'
+            elif isinstance(region, FileSystem.Region):
+                client = 'fs'
             else:
                 client = None
             if client is not None:
-                threads.append(threading.Thread(target=self.clients[client].download, args=(region.region_id + '.' + bucket_name, file_key, d,)))
+                threads.append(threading.Thread(target=self.clients[client].download, args=(region.region_id + '.io.r4.client.' + bucket_name, file_key, d,)))
 
         for t in threads:
             t.start()
