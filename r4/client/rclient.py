@@ -195,6 +195,7 @@ class Client(AbstractProvider):
                     yield bucket
 
     def create(self, bucket_name):
+        bucket_name = 'io.r4.client.%s' % (bucket_name,)
 
         threads = []
 

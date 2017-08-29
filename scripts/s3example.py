@@ -10,13 +10,13 @@ if __name__ == '__main__':
         S3.Region('us-west-2'),
         ])
     
-    bucket_name = 'io.r4.username03'
+    bucket_name = 'username04'
 
-    # print('Client.create("%s")' % (bucket_name,))
-    # client.create(bucket_name)
+    print('Client.create("%s")' % (bucket_name,))
+    client.create(bucket_name)
 
-    # for bucket in client.list():
-    #     print('Bucket? %s' % bucket['Name'])
+    for bucket in client.list():
+        print('Bucket? %s' % bucket['Name'])
 
     upload_this = 'Hello AWS World. 4 Threads!'.encode('utf-8')
     key = 'test_file'
