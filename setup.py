@@ -12,10 +12,7 @@ from setuptools.command.test import test as TestCommand
 
 packages = [
     'r4',
-    'r4.backend',
     'r4.client',
-    'r4.fileserver',
-    'r4.userserver',
 ]
 
 requires = []
@@ -43,8 +40,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: Implementation :: CPython',

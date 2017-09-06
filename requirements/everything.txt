@@ -1,7 +1,4 @@
 -r common.txt
 -r dev.txt
 -r test.txt
--r backend/requirements.txt
 -r client/requirements.txt
--r fileserver/requirements.txt
--r userserver/requirements.txt
