@@ -19,4 +19,4 @@ install:
   - pip install -r requirements/everything.txt
 script:
   - py.test tests/
-
+  - codecov
