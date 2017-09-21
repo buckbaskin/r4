@@ -9,6 +9,13 @@ from r4.client import AbstractFileManager, AbstractProvider
 from r4.client.s3 import S3
 from r4.client.r4 import R4, FileSystem
 
+import airbrake
+error_logger = airbrake.getLogger(api_key="1001b69b71a13ef204b4a8ac1e38d9ad", project_id=157356)
+# try:
+#     1/0
+# except Exception:
+#     logger.exception("Bad math.")
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 print = logger.info
