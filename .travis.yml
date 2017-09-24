@@ -17,6 +17,7 @@ matrix:
 install: 
   - pip install --upgrade pip
   - pip install -r requirements.txt
+  - pip install -U .
 script:
   - py.test --cov=r4 tests/
 
