@@ -13,6 +13,7 @@ from setuptools.command.test import test as TestCommand
 packages = [
     'r4',
     'r4.client',
+    'r4.intermediate',
 ]
 
 requires = []
