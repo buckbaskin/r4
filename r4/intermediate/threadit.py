@@ -25,21 +25,22 @@ config = {
 services = config['services']
 options = config['options']
 
-def sufficiently_advanced_technology(method, requestUri, data):
+def sufficiently_advanced_technology(method: str, requestUri: str, data: str) -> bytes:
     method = method.lower()
-    def mapped_f(endpoint):
-        return getattr(requests, method)(endpoint + requestUri, data=data),
+    def mapped_f(endpoint: str) -> requests.models.Response:
+        return getattr(requests, method)(endpoint + requestUri, data=data)
         
     asyncr = pool.map_async(mapped_f, (service_dict['endpoint'] for service_dict in services))
 
     # return the fastest result
     for result in asyncr.get(None):
-        return result[0].content
+        return result.content
+    return None
  
 # example
-def can_u_threadit():
-    return sufficiently_advanced_technology('GET', '/get', None)
+def can_u_threadit() -> None:
+    print(sufficiently_advanced_technology('GET', '/get', None))
 
 if __name__ == '__main__':
-    print(can_u_threadit())
+    can_u_threadit()
 
