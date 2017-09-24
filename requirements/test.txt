@@ -1,2 +1,3 @@
+requests-mock
 pytest
 pytest-cov
