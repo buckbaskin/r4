@@ -1,7 +1,10 @@
-import requests
 import boto3
+import requests
 import multiprocessing
 import threading
+from multiprocessing.pool import ThreadPool
+
+pool = ThreadPool(5)
 
 reqf = {
     'get': requests.get,
@@ -33,20 +36,18 @@ def sufficiently_advanced_technology(method, requestUri, data):
     method = method.lower()
     services = config['services']
     r = {}
-    threads = []
+    targets = []
+    def mapped_f(endpoint):
+        r[endpoint] = reqf[method](endpoint + requestUri, data=data),
+        
     for service_dict in services:
         endpoint = service_dict['endpoint']
-        # call the same method that was called
-        def thread_target(endpoint):
-            r[endpoint] = reqf[method](endpoint + requestUri, data=data),
-            print('in threading %s' % (r[endpoint],))
-        t = threading.Thread(target=thread_target, args=(endpoint,))
-        t.start()
-        threads.append(t)
+        targets.append(endpoint)
+
+    pool.map(mapped_f, targets)
     
-    for index, service_dict in enumerate(services):
+    for service_dict in services:
         endpoint = service_dict['endpoint']
-        threads[index].join()
         try:
             return r[endpoint][0].content
         except NameError:
