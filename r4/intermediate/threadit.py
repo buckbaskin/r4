@@ -1,20 +1,9 @@
-import boto3
 import requests
-import multiprocessing
-import threading
+
 from multiprocessing.pool import ThreadPool
 
 # Magic number 5!
 pool = ThreadPool(5)
-
-reqf = {
-    'get': requests.get,
-    'post': requests.post,
-    'put': requests.put,
-    'delete': requests.delete,
-    'head': requests.head,
-    'options': requests.options,
-}
 
 # Magic config
 config = {
@@ -33,22 +22,21 @@ config = {
          'style': 'all' # choose either all or first
     }
 }
+services = config['services']
+options = config['options']
 
 def sufficiently_advanced_technology(method, requestUri, data):
     method = method.lower()
-    services = config['services']
-    r = {}
     def mapped_f(endpoint):
-        r[endpoint] = reqf[method](endpoint + requestUri, data=data),
-        return r[endpoint]
+        return getattr(requests, method)(endpoint + requestUri, data=data),
         
     asyncr = pool.map_async(mapped_f, (service_dict['endpoint'] for service_dict in services))
 
+    # return the fastest result
     for result in asyncr.get(None):
         return result[0].content
-
-    return None
-    
+ 
+# example
 def can_u_threadit():
     return sufficiently_advanced_technology('GET', '/get', None)
 
