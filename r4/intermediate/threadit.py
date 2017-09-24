@@ -4,6 +4,7 @@ import multiprocessing
 import threading
 from multiprocessing.pool import ThreadPool
 
+# Magic number 5!
 pool = ThreadPool(5)
 
 reqf = {
@@ -15,6 +16,7 @@ reqf = {
     'options': requests.options,
 }
 
+# Magic config
 config = {
     'services': [
         # {
@@ -36,22 +38,14 @@ def sufficiently_advanced_technology(method, requestUri, data):
     method = method.lower()
     services = config['services']
     r = {}
-    targets = []
     def mapped_f(endpoint):
         r[endpoint] = reqf[method](endpoint + requestUri, data=data),
+        return r[endpoint]
         
-    for service_dict in services:
-        endpoint = service_dict['endpoint']
-        targets.append(endpoint)
+    asyncr = pool.map_async(mapped_f, (service_dict['endpoint'] for service_dict in services))
 
-    pool.map(mapped_f, targets)
-    
-    for service_dict in services:
-        endpoint = service_dict['endpoint']
-        try:
-            return r[endpoint][0].content
-        except NameError:
-            continue
+    for result in asyncr.get(None):
+        return result[0].content
 
     return None
     
