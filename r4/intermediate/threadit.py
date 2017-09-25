@@ -14,7 +14,7 @@ config = {
         # }
         {
             'name': 'HTTP Bin',
-            'endpoint': 'https://httpbin.org/'
+            'endpoint': 'https://httpbin.org'
         }
     ],
     'options': {
