@@ -1,3 +1,4 @@
+codecov
 mypy
 pytest
 pytest-cov
