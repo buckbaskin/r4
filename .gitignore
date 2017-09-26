@@ -1,6 +1,9 @@
 *.pyc
+*.swp
+.mypy_cache/
 .cache/
 venv/
 venv34/
 secrets/
 temp/
+.coverage

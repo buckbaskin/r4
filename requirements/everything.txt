@@ -1,4 +1,0 @@
--r common.txt
--r dev.txt
--r test.txt
--r client/requirements.txt

@@ -16,7 +16,9 @@ matrix:
 # command to install dependencies
 install: 
   - pip install --upgrade pip
-  - pip install -r requirements/everything.txt
+  - pip install -r requirements.txt
+  - pip install -U .
 script:
-  - py.test tests/
-
+  - py.test --cov=r4 tests/
+#  - mypy --ignore-missing-imports --disallow-any expr --disallow-untyped-calls --disallow-untyped-defs r4
+  - codecov

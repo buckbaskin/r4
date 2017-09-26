@@ -1,2 +1,5 @@
+codecov
+mypy
 pytest
 pytest-cov
+pytest-mock
