@@ -40,7 +40,7 @@ def sufficiently_advanced_technology(method: str, requestUri: str, data: str) ->
 
     # return the fastest result
     if options['style'] == 'first':
-	for result in asyncr.get(None):
+        for result in asyncr.get(None):
             return result.content
         return None
     else:
