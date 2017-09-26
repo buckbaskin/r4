@@ -31,7 +31,10 @@ options = config['options']
 
 # TODO(buckbaskin): Where/how should the bucket prefix get inserted?
 
-def sufficiently_advanced_technology(method: str, requestUri: str, data: str) -> bytes:
+def sufficiently_advanced_technology(method: str, requestUri: str, data: str, _options=None) -> bytes:
+    if _options is not None:
+        global options
+        options = _options
     method = method.lower()
     def mapped_f(endpoint: str) -> requests.models.Response:
         return getattr(requests, method)(endpoint + requestUri, data=data)

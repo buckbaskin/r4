@@ -8,3 +8,5 @@ secrets/
 temp/
 .coverage
 coverage.xml
+htmlcov/
+*.egg-info

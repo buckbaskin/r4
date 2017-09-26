@@ -19,3 +19,15 @@ def test_threading1(mocker):
     # requests.method_under_test()
     assert sufficiently_advanced_technology('GET', '/get', None) == binGetContent1
     requests.get.assert_called_with(url, data=None)
+
+def test_threading2(mocker):
+    url = "https://httpbin.org/get"
+    mocker.patch.object(requests, 'get')
+    r = requests.Response()
+    r._content = binGetContent1
+    r.url = url
+    requests.get.return_value = r
+    # requests.method_under_test()
+    assert sufficiently_advanced_technology('GET', '/get', None, {'style': 'first'}) == binGetContent1
+    requests.get.assert_called_with(url, data=None)
+

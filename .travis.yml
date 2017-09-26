@@ -17,9 +17,11 @@ matrix:
 install: 
   - pip install --upgrade pip
   - pip install -r requirements.txt
-  - pip install -U .
+  - pip install -e .
 script:
-  - py.test --cov=r4 tests/
+  - py.test -v --cov=r4
 #  - mypy --ignore-missing-imports --disallow-any expr --disallow-untyped-calls --disallow-untyped-defs r4
   - coverage xml
-  - codecov
+  - cat coverage.xml
+  - codecov -v --required
+
