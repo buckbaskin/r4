@@ -1,6 +1,7 @@
 import boto3
 
 from r4.client import AbstractProvider, AbstractRegion
+from r4.logging import logger
 
 class S3(AbstractProvider):
     def __init__(self, region):

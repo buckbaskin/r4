@@ -1,17 +1,13 @@
 import boto3
 import botocore
 import copy
-import logging
 import threading
 
 from collections import deque
 from r4.client import AbstractFileManager, AbstractProvider
 from r4.client.s3 import S3
 from r4.client.r4 import R4, FileSystem
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-print = logger.info
+from r4.logging import logger
 
 class UploadManagerFactory(object):
     '''
@@ -177,7 +173,7 @@ class Client(AbstractProvider):
                 if 'fs' not in self.clients:
                     self.clients['fs'] = FileSystem(region)
             else:
-                print('Unsupported Region %s' % (region,))
+                logging.info('Unsupported Region %s' % (region,))
                 raise NotImplementedError()
 
     def list(self):
@@ -213,7 +209,7 @@ class Client(AbstractProvider):
             else:
                 return False
             args = (region.region_id + '.io.r4.client.' + bucket_name,)
-            print('create %s' % (args,))
+            logging.info('create %s' % (args,))
             threads.append(threading.Thread(target=self.clients[client].create, args=args))
 
         for t in threads:
@@ -272,7 +268,7 @@ class Client(AbstractProvider):
 
         umf = UploadManagerFactory(data=data, fractional_upload=int(fractional_upload))
 
-        print('created umf')
+        logging.info('created umf')
 
         for region in self.regions:
             if isinstance(region, R4.Region):
@@ -284,11 +280,11 @@ class Client(AbstractProvider):
             else:
                 client = None
             if client is not None:
-                print('appending upload thread')
+                logging.info('appending upload thread')
                 threads.append(threading.Thread(target=self.clients[client].upload, args=(region.region_id + '.io.r4.client.' + bucket_name, file_key, umf.generate_manager(),)))
 
         for t in threads:
-            print('starting upload thread')
+            logging.info('starting upload thread')
             t.start()
 
         logger.debug('waiting on upload block')

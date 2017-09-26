@@ -1,5 +1,4 @@
 import errno
-import logging
 import os
 import shutil
 
@@ -8,11 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from r4.client import AbstractProvider, AbstractRegion
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-print = logger.info
-
+from r4.logging import logger
 
 class R4(AbstractProvider):
     def __init__(self):
@@ -108,17 +103,17 @@ class FileSystem(AbstractProvider):
             self.delete(bucket['Name'])
 
     def upload(self, bucket_name, file_key, file_obj):
-        print('begin fs upload of in bucket %s for file %s' % (bucket_name, file_key,))
-        print(str(self.registry))
+        logger.info('begin fs upload of in bucket %s for file %s' % (bucket_name, file_key,))
+        logger.info(str(self.registry))
         if bucket_name not in self.registry:
             return False
-        print('name in registry')
+        logger.info('name in registry')
 
         folder_path = self.registry[bucket_name]['folder_path']
         file_name = str(sha512(str(file_key).encode('utf-8')).hexdigest())[:32]
         file_full_path = str(folder_path / file_name)
 
-        print('ready to write file')
+        logger.info('ready to write file')
 
         with open(file_full_path, 'wb') as f:
             f.write(file_obj.read())
@@ -129,7 +124,7 @@ class FileSystem(AbstractProvider):
             'file_full_path': file_full_path,
         }
 
-        print('file written')
+        logger.info('file written')
 
         return True
 

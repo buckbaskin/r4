@@ -1,14 +1,7 @@
-import airbrake
-import logging
 import requests
 
 from multiprocessing.pool import ThreadPool
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-airbrake_logger = airbrake.getLogger(api_key="1001b69b71a13ef204b4a8ac1e38d9ad", project_id=157356)
-logger.exception = airbrake_logger.exception
-
+from r4.logging import logger
 # logger.exception("Bad math.")
 
 # Magic number 5!
