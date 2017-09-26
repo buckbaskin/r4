@@ -21,4 +21,5 @@ install:
 script:
   - py.test --cov=r4 tests/
 #  - mypy --ignore-missing-imports --disallow-any expr --disallow-untyped-calls --disallow-untyped-defs r4
+  - coverage xml
   - codecov

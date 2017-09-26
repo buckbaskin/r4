@@ -14,6 +14,7 @@ packages = [
     'r4',
     'r4.client',
     'r4.intermediate',
+    'r4.logging',
 ]
 
 requires = []

@@ -7,3 +7,4 @@ venv34/
 secrets/
 temp/
 .coverage
+coverage.xml
