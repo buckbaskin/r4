@@ -45,8 +45,8 @@ def sufficiently_advanced_technology(method: str, requestUri: str, data: str) ->
         return None
     else:
         result_bytes = None
-        for resutl in asyncr.get(None):
-            result_bytes = resultl
+        for result in asyncr.get(None):
+            result_bytes = result.content
         return result_bytes
  
 # example
