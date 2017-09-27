@@ -4,8 +4,39 @@ import botocore
 import hashlib
 import json
 
+global_prefix = 'io.r4'
 
-r4_IP_address = '127.0.0.1'
+DEFAULT_CONFIG = {
+    'services': [
+        {
+            'name': 'S3 US East 1',
+            'endpoint': 's3.amazonaws.com',
+            'prefix': 's3.us-east-1',
+        },
+        {
+            'name': 'S3 US East 2',
+            'endpoint': 's3.us-east-2.amazonaws.com',
+            'prefix': 's3.us-east-2',
+        },
+        {
+            'name': 'S3 US West 1',
+            'endpoint': 's3-us-west-1.amazonaws.com',
+            'prefix': 's3.us-west-1',
+        },
+        {
+            'name': 'Google Cloud Platform',
+            'endpoint': 'storage.googleapis.com',
+            'prefix': 'gcp.storage',
+        },
+    ],
+    'options': {
+        'style': 'first'
+    },
+    'metadata': {
+        'version': '1'
+    }
+}
+# r4_IP_address = '127.0.0.1'
 
 session = boto3.session.Session()
 
@@ -17,6 +48,9 @@ def sanitize_username(username):
     h = hashlib.new('sha512')
     h.update(username.encode('utf-8'))
     return h.hexdigest()
+
+def compile_name(bucket_name):
+    return '%s.%s.%s.%s' % (global_prefix, service_name, username, bucket_name)
 
 def store_config(username, config):
     bucket_name = 'io.r4.config'
