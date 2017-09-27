@@ -1,7 +1,4 @@
 import json
-js = open('./service-2.json')
-data = json.load(js)
-print(data['operations'])
 
 boto2url(jsonfile):
     js = open(jsonfile)
@@ -14,3 +11,6 @@ boto2url(jsonfile):
             uridict[uri] = []
         uridict[uri].append(method)
     return uridict
+
+if __name__ == '__main__':
+    pass
