@@ -53,6 +53,9 @@ class Event(object):
         self.username = username # string
         self.type_ = type_ # string, GET, POST, etc.
         self.size = size # MB
+@app.task
+def handle_event(event_json):
+    pass
 
 @app.task
 def parse_text_event(text_event):
@@ -62,29 +65,66 @@ def parse_text_event(text_event):
     # specify that the text event come in as JSON with requisite info
     # use this info to parse to the correct events
     e = Event(datetime.now(), 'example_user', 'GET', 0.050)
-    update_storage.delay(e)
-    update_bandwidth.delay(e)
-    update_requests.delay(e)
+    handle_event.apply_async(args=[e.to_json()])
 
-@app.task
-def update_storage(event):
-    # process the given event and add its updated storage cost for a user
-    # write a begin-storage event for a given username-service-bucket-key-version combination
-    # or find the corresponding event and use the data to finish it and write a storage x time used value to a username-service
-    # or don't do anything if the event doesn't change storage
+    ### These get called on a schedule
+    #  batch_update.delay('bandwidth')
+    #  batch_update.delay('storage')
+    #  batch_update.delay('requests')
+
+local_data = {
+    'bandwidth': None,
+    'storage': None,
+    'requests': None,
+}
+
+def update_local_storage(event):
     pass
 
-@app.task
-def update_bandwidth(event):
-    # process event and accumulate its additional bandwidth cost
-    # write a bandwidth incrememnt for a username-service
+def update_local_bandwidth(event):
     pass
 
-@app.task
-def update_requests(event):
+def update_local_requests(event):
     # write a requests increment for a username-service
     pass
 
+update_local = {
+    'bandwidth': update_local_bandwidth,
+    'storage': update_local_storage,
+    'requests': update_local_requests,
+}
+
+def write_local_to_s3(event):
+    pass
+
+
+@app.task
+def batch_update(param):
+    # process event and accumulate its additional bandwidth cost
+    # write a bandwidth incrememnt for a username-service
+    global local_data
+    if local_data[param] is None:
+        # TODO(buckbaskin): load from s3
+        local_data[param] = {}
+
+    global app
+    with app.amqp.Connection(app.conf['BROKER_URL']) as conn:
+        queue_name = 'batch_%s' % (param,)
+        q = conn.SimpleQueue(queue_name)
+        number = conn.manager.get_queue_depth('/', queue_name)
+        messages = []
+        for _ in range(number):
+            try:
+                messages.append(q.get(timeout=.1))
+            except Empty:
+                break
+
+        for message in messages:
+            event = json.loads(message.decode()['args'][0])
+            update_local[param](event)
+
+        write_local_to_s3(local_data)
+        
 @app.task
 def calculate_bill(username):
     # aggregate all of the billed actions for the given user
