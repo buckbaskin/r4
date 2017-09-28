@@ -1,3 +1,4 @@
+codacy-coverage
 codecov
 mypy
 pytest
