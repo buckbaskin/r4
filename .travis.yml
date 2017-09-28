@@ -24,5 +24,5 @@ script:
   - coverage xml
 #  - cat coverage.xml
   - codecov -v --required
-  - python-codacy-coverage -r coverage.xml
+  - python-codacy-coverage -v -r coverage.xml
 
