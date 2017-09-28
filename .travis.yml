@@ -22,6 +22,7 @@ script:
   - py.test -v --cov=r4
 #  - mypy --ignore-missing-imports --disallow-any expr --disallow-untyped-calls --disallow-untyped-defs r4
   - coverage xml
-  - cat coverage.xml
+#  - cat coverage.xml
   - codecov -v --required
+  - python-codacy-coverage -r coverage.xml
 
